@@ -2,6 +2,7 @@
 {
   imports = [
     ./networks.nix
+    ./volumes.nix
     ./containers.nix
   ];
 
