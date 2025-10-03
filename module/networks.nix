@@ -42,7 +42,7 @@ let
 
   mkNetworkService =
     name: cfg:
-    (
+    lib.mkMerge [
       {
         path = [ config.virtualisation.docker.package ];
         serviceConfig = {
@@ -60,8 +60,8 @@ let
         );
         preStop = "docker network rm -f ${lib.escapeShellArg name}";
       }
-      // cfg.serviceOptions
-    );
+      cfg.serviceOptions
+    ];
 
 in
 {

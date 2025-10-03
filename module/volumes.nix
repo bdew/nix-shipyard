@@ -42,7 +42,7 @@ let
 
   mkVolumeService =
     name: cfg:
-    (
+    lib.mkMerge [
       {
         path = [ config.virtualisation.docker.package ];
         serviceConfig = {
@@ -59,8 +59,8 @@ let
           ++ lib.optional (cfg.driverOptions != null) "-o ${helpers.mkKvOpts cfg.driverOptions}"
         );
       }
-      // cfg.serviceOptions
-    );
+      cfg.serviceOptions
+    ];
 
 in
 {

@@ -370,12 +370,12 @@ let
           description = "Attached networks with their address";
 
           example = lib.literalExpression ''
-              foo = true;                 # attach to network "foo", set ip automatically
-              bar = "1.2.3.4";            # attach to network "foo", set ip manually
-              lan = {
-                ip = "10.10.0.100";       # attach to network "foo", with extra parameters
-                ip6 = "fd00:0001::100";
-              };
+            foo = true;                 # attach to network "foo", set ip automatically
+            bar = "1.2.3.4";            # attach to network "foo", set ip manually
+            lan = {
+              ip = "10.10.0.100";       # attach to network "foo", with extra parameters
+              ip6 = "fd00:0001::100";
+            };
           '';
         };
 
@@ -424,13 +424,13 @@ let
 
   mkContainerService =
     name: cfg:
-    (
+    lib.mkMerge [
       {
         after = networkServiceNames cfg.networks;
         requires = networkServiceNames cfg.networks;
       }
-      // cfg.serviceOptions
-    );
+      cfg.serviceOptions
+    ];
 
 in
 
