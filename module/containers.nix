@@ -341,28 +341,26 @@ let
         };
 
         volumes = lib.mkOption {
-          type = lib.types.listOf lib.types.str;
-          default = [ ];
-          description = ''
-            List of volumes to attach to this container.
 
-            Note that this is a list of `"src:dst"` strings to
-            allow for `src` to refer to `/nix/store` paths, which
-            would be difficult with an attribute set.  There are
-            also a variety of mount options available as a third
-            field; please refer to the
-            [docker engine documentation](https://docs.docker.com/engine/storage/volumes/) for details.
-          '';
+          type = lib.types.attrsOf (
+            lib.types.either lib.types.str (lib.types.attrsOf (lib.types.either lib.types.str lib.types.bool))
+          );
+          default = { };
+          description = "Attached volumes";
+
           example = lib.literalExpression ''
-            [
-              "volume_name:/path/inside/container"
-              "/path/on/host:/path/inside/container"
-            ]
+            "/app/data" = "/opt/data/bar";        # attach host directory /opt/data/bar to /app/data inside the container
+            "/app/data_ro" = "/opt/data/bar:ro";  # attach host directory /opt/data/bar to /app/data inside the container in read only mode
+            "/app/foo" = "bar";                   # attach volume "foo" to /app/foo inside the container
+            "/app/foo_ro" = "bar:ro";             # attach volume "foo" to /app/foo_ro inside the container in read only mode
+            "/app/baz" = {                        # extended syntax - equivalent to passing to docker "--mount type=tmpfs,dst=/app/baz,noexec"
+                type = "tmpfs";
+                noexec = "true";
+            };
           '';
         };
 
         networks = lib.mkOption {
-
           type = lib.types.attrsOf (
             lib.types.either lib.types.bool (lib.types.either lib.types.str (lib.types.attrsOf lib.types.str))
           );
@@ -392,10 +390,56 @@ let
     (
       if (cfg == true) then
         [ "--network=${lib.escapeShellArg name}" ]
-      else if (builtins.isString cfg) then
+      else if builtins.isString cfg then
         [ "--network=name=${lib.escapeShellArg name},ip=${lib.escapeShellArg cfg}" ]
       else
         [ "--network=${helpers.mkKvOpts ({ inherit name; } // cfg)}" ]
+    );
+
+  mkMountArgFromObj = name: cfg: [
+    "--mount"
+    (helpers.mkKvOpts ({ dst = name; } // cfg))
+  ];
+
+  mkMountArgPart =
+    part:
+    let
+      split = (lib.splitString "=" part);
+    in
+    {
+      name = builtins.elemAt split 0;
+      value =
+        if builtins.length split == 1 then
+          true
+        else if builtins.length split == 2 then
+          builtins.elemAt split 1
+        else
+          builtins.throw "invalint mount argument: ${part}";
+    };
+
+  mkMountArgFromString =
+    name: type: parts:
+    let
+      src = builtins.elemAt parts 0;
+      rest = builtins.map mkMountArgPart (lib.drop 1 parts);
+    in
+    mkMountArgFromObj name (
+      {
+        inherit type src;
+      }
+      // (builtins.listToAttrs rest)
+    );
+
+  mkMountArg =
+    name: cfg:
+    (
+      if builtins.isString cfg then
+        if (builtins.substring 0 1 cfg) == "/" then
+          mkMountArgFromString name "bind" (lib.splitString ":" cfg)
+        else
+          mkMountArgFromString name "volume" (lib.splitString ":" cfg)
+      else
+        mkMountArgFromObj name cfg
     );
 
   mkExtraOptions =
@@ -404,6 +448,9 @@ let
       cfg.extraOptions
       ++ (lib.flatten (
         lib.mapAttrsToList (netName: netCfg: (mkNetworkAttachmentArg netName netCfg)) cfg.networks
+      ))
+      ++ (lib.flatten (
+        lib.mapAttrsToList (mountName: mountCfg: (mkMountArg mountName mountCfg)) cfg.volumes
       ))
     );
 

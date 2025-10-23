@@ -18,6 +18,16 @@ rec {
       ) attrs
     );
 
-  mkKvOpts =
-    attrs: lib.concatStringsSep "," (lib.mapAttrsToList (k: v: "${k}=${lib.escapeShellArg v}") attrs);
+  mkKvOpt =
+    k: v:
+    (
+      if (v == true) then
+        k
+      else if builtins.isString v then
+        "${k}=${lib.escapeShellArg v}"
+      else
+        builtins.throw "Invalid key-value value: ${v}"
+    );
+
+  mkKvOpts = attrs: lib.concatStringsSep "," (lib.mapAttrsToList mkKvOpt attrs);
 }
