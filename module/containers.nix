@@ -343,7 +343,7 @@ let
         volumes = lib.mkOption {
 
           type = lib.types.attrsOf (
-            lib.types.either lib.types.str (lib.types.attrsOf (lib.types.either lib.types.str lib.types.bool))
+            lib.types.either lib.types.str (lib.types.attrsOf (lib.types.either lib.types.str (lib.types.either lib.types.package lib.types.bool)))
           );
           default = { };
           description = "Attached volumes";

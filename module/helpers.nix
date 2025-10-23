@@ -25,8 +25,10 @@ rec {
         k
       else if builtins.isString v then
         "${k}=${lib.escapeShellArg v}"
+      else if lib.isDerivation v then
+        "${k}=${v}"
       else
-        builtins.throw "Invalid key-value value: ${v}"
+        builtins.throw "Invalid value: ${v}"
     );
 
   mkKvOpts = attrs: lib.concatStringsSep "," (lib.mapAttrsToList mkKvOpt attrs);
