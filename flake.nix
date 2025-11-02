@@ -14,5 +14,7 @@
     }:
     {
       nixosModules.default = import ./module;
+
+      nixosConfigurations.example = import ./example { inherit nixpkgs; dockerModule = self.nixosModules.default; };
     };
 }

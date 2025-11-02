@@ -26,6 +26,17 @@ let
           description = "Options that will be passed to `docker network create`";
         };
 
+        labels = lib.mkOption {
+          type = lib.types.attrsOf lib.types.str;
+          default = { };
+          description = "Labels to attach to the network at runtime.";
+          example = lib.literalExpression ''
+            {
+              "foo" = "bar";
+            }
+          '';
+        };
+
         driverOptions = lib.mkOption {
           type = lib.types.nullOr (lib.types.attrsOf lib.types.str);
           default = null;
@@ -56,7 +67,8 @@ let
             "docker network inspect ${lib.escapeShellArg name} || docker network create ${lib.escapeShellArg name}"
           ]
           ++ (helpers.mkDashDashOpts cfg.options)
-          ++ lib.optional (cfg.driverOptions != null) "-o ${helpers.mkKvOpts cfg.driverOptions}"
+          ++ (lib.optional (cfg.driverOptions != null) "-o ${helpers.mkKvOpts cfg.driverOptions}")
+          ++ (lib.mapAttrsToList (k: v: "--label ${lib.escapeShellArg k}=${lib.escapeShellArg v}") cfg.labels)
         );
         preStop = "docker network rm -f ${lib.escapeShellArg name}";
       }
