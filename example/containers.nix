@@ -34,6 +34,10 @@
             type = "bind";
             src = testFile;
           };
+          "/foo/fromfile" = {
+            type = "bind";
+            src = ./foo.txt;
+          };
           "/baz" = "/test:ro:foo=bar";
           "/aaa" = "testvol:ro:foo=bar";
         };

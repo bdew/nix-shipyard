@@ -27,6 +27,8 @@ rec {
         "${k}=${lib.escapeShellArg v}"
       else if lib.isDerivation v then
         "${k}=${v}"
+      else if lib.isPath v then
+        "${k}=${v}"
       else
         builtins.throw "Invalid value: ${v}"
     );

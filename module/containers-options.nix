@@ -348,7 +348,7 @@ in
           type = lib.types.attrsOf (
             lib.types.either lib.types.str (
               lib.types.attrsOf (
-                lib.types.either lib.types.str (lib.types.either lib.types.package lib.types.bool)
+                lib.types.either lib.types.str (lib.types.either lib.types.path (lib.types.either lib.types.package lib.types.bool))
               )
             )
           );
