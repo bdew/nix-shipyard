@@ -69,6 +69,8 @@ let
           [ ]
         else
           [ (builtins.elemAt (lib.splitString ":" cfg) 0) ]
+      else if (lib.isDerivation cfg) || (lib.isPath cfg) then
+        [ ]
       else if cfg.type == "volume" then
         [ cfg.src ]
       else
