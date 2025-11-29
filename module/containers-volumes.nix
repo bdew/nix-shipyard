@@ -39,6 +39,14 @@ let
       // (builtins.listToAttrs rest)
     );
 
+  mkMountArgBind =
+    name: path:
+    mkMountArgFromObj name {
+      type = "bind";
+      src = path;
+      ro = true;
+    };
+
   mkMountArg =
     name: cfg:
     (
@@ -47,6 +55,8 @@ let
           mkMountArgFromString name "bind" (lib.splitString ":" cfg)
         else
           mkMountArgFromString name "volume" (lib.splitString ":" cfg)
+      else if (lib.isDerivation cfg) || (lib.isPath cfg) then
+        mkMountArgBind name cfg
       else
         mkMountArgFromObj name cfg
     );
@@ -71,5 +81,7 @@ in
 {
   extraOptions = volumes: lib.flatten (lib.mapAttrsToList mkMountArg volumes);
 
-  serviceNames = volumes: builtins.map mkServiceName (lib.flatten (builtins.map volumeNames (builtins.attrValues volumes)));
+  serviceNames =
+    volumes:
+    builtins.map mkServiceName (lib.flatten (builtins.map volumeNames (builtins.attrValues volumes)));
 }

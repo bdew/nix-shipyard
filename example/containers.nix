@@ -30,14 +30,8 @@
             type = "volume";
             src = "othervol";
           };
-          "/foo/config" = {
-            type = "bind";
-            src = testFile;
-          };
-          "/foo/fromfile" = {
-            type = "bind";
-            src = ./foo.txt;
-          };
+          "/foo/fromDerivation" = testFile;
+          "/foo/fromfile" = ./foo.txt;
           "/baz" = "/test:ro:foo=bar";
           "/aaa" = "testvol:ro:foo=bar";
         };

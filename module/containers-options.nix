@@ -346,11 +346,19 @@ in
         volumes = lib.mkOption {
 
           type = lib.types.attrsOf (
-            lib.types.either lib.types.str (
-              lib.types.attrsOf (
-                lib.types.either lib.types.str (lib.types.either lib.types.path (lib.types.either lib.types.package lib.types.bool))
-              )
-            )
+            lib.types.oneOf [
+              lib.types.str
+              lib.types.path
+              lib.types.package
+              (lib.types.attrsOf (
+                lib.types.oneOf [
+                  lib.types.str
+                  lib.types.path
+                  lib.types.package
+                  lib.types.bool
+                ]
+              ))
+            ]
           );
           default = { };
           description = "Attached volumes";
@@ -369,7 +377,11 @@ in
 
         networks = lib.mkOption {
           type = lib.types.attrsOf (
-            lib.types.either lib.types.bool (lib.types.either lib.types.str (lib.types.attrsOf lib.types.str))
+            lib.types.oneOf [
+              lib.types.bool
+              lib.types.str
+              (lib.types.attrsOf lib.types.str)
+            ]
           );
           default = { };
           description = "Attached networks with their address";
