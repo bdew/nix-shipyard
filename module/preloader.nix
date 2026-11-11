@@ -19,7 +19,7 @@ let
   );
   docker-preloader = pkgs.writers.writePython3 "docker-preloader" {
     libraries = [ ];
-    flakeIgnore = [ "E501" ]; # ignores line-length linter warnings
+    flakeIgnore = [ "E501" "W503" ]; # ignores line-length and line-break linter warnings
   } ./preloader.py;
 in
 {
