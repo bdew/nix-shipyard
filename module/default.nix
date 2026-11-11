@@ -4,6 +4,7 @@
     ./networks.nix
     ./volumes.nix
     ./containers.nix
+    ./preloader.nix
   ];
 
   config = {
