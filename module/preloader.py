@@ -5,14 +5,35 @@ from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 
 
-def preload_image(image, docker_bin):
+def normalize_repository(repository):
+    parts = repository.split("/", 1)
+    if len(parts) == 1:
+        return f"docker.io/library/{repository}"
+
+    registry, name = parts
+    if "." not in registry and ":" not in registry and registry != "localhost":
+        return f"docker.io/{repository}"
+    if registry == "index.docker.io":
+        return f"docker.io/{name}"
+    return repository
+
+
+def preload_image(image, docker_bin, action):
     repository, separator, digest = image.partition("@")
     if separator:
+        tagged_repository = repository
         if repository.rfind(":") > repository.rfind("/"):
             repository = repository.rsplit(":", 1)[0]
         reference = f"{repository}@{digest}"
+        tag_separator = tagged_repository.rfind(":")
+        tag = (
+            tagged_repository[tag_separator + 1:]
+            if tag_separator > tagged_repository.rfind("/")
+            else None
+        )
     else:
         reference = image
+        tag = None
 
     result = subprocess.run(
         [docker_bin, "image", "inspect", reference],
@@ -33,6 +54,58 @@ def preload_image(image, docker_bin):
     )
     if pull_result.returncode == 0:
         print(f"[Docker Preload] Pulled: {repository} ({digest})")
+        if separator and action != "dry-activate":
+            image_list = subprocess.run(
+                [
+                    docker_bin,
+                    "image",
+                    "ls",
+                    "--no-trunc",
+                    "--digests",
+                    "--format",
+                    "{{json .}}",
+                ],
+                capture_output=True,
+                check=True,
+                text=True,
+            )
+            listed_images = image_list.stdout.splitlines()
+            target_tag = f"{repository}:{tag}" if tag else None
+            normalized_repository = normalize_repository(repository)
+            for line in listed_images:
+                listed_image = json.loads(line)
+                listed_repository = listed_image["Repository"]
+                if normalize_repository(listed_repository) != normalized_repository:
+                    continue
+
+                listed_tag = listed_image["Tag"]
+                listed_digest = listed_image["Digest"]
+                references = []
+                if listed_tag != "<none>":
+                    references.append(("tag", listed_tag, f"{listed_repository}:{listed_tag}"))
+
+                if listed_digest != "<none>":
+                    references.append(("digest", listed_digest, f"{listed_repository}@{listed_digest}"))
+
+                for reference_type, value, listed_reference in references:
+                    if reference_type == "digest" and value == digest:
+                        continue
+                    if reference_type == "tag" and value == tag:
+                        continue
+
+                    subprocess.run(
+                        [docker_bin, "image", "rm", "-f", listed_reference],
+                        check=True,
+                    )
+
+                    print(f"[Docker Preload] Untagged: {listed_reference}")
+
+            if target_tag:
+                print(f"[Docker Preload] Tagging: {reference} as {target_tag}")
+                subprocess.run(
+                    [docker_bin, "image", "tag", reference, target_tag],
+                    check=True,
+                )
         return "pulled"
 
     print(f"[Docker Preload] Failed: {repository} ({digest})")
@@ -63,7 +136,7 @@ def main():
 
     with ThreadPoolExecutor() as executor:
         futures = [
-            executor.submit(preload_image, image, docker_bin)
+            executor.submit(preload_image, image, docker_bin, action)
             for image in images
         ]
         results = Counter(future.result() for future in futures)
