@@ -18,8 +18,7 @@ def normalize_repository(repository):
     return repository
 
 
-def reconcile_image_references(docker_bin, repository, digest, tag):
-    reference = f"{repository}@{digest}"
+def reconcile_image_references(docker_bin, repository, digest, tag, reference):
     inspect_result = subprocess.run(
         [docker_bin, "image", "inspect", "--format", "{{json .}}", reference],
         capture_output=True,
@@ -30,7 +29,7 @@ def reconcile_image_references(docker_bin, repository, digest, tag):
     target_id = target_image["Id"]
     normalized_repository = normalize_repository(repository)
 
-    if tag:
+    if digest and tag:
         tags = target_image["RepoTags"] or []
         already_tagged = any(
             ":" in existing_tag
@@ -79,7 +78,7 @@ def reconcile_image_references(docker_bin, repository, digest, tag):
         if listed_tag != "<none>":
             references.append(("tag", listed_tag, f"{listed_repository}:{listed_tag}"))
 
-        if listed_digest != "<none>":
+        if digest and listed_digest != "<none>":
             references.append(("digest", listed_digest, f"{listed_repository}@{listed_digest}"))
 
         for reference_type, value, listed_reference in references:
@@ -122,23 +121,31 @@ def preload_image(image, docker_bin, action):
         check=False,
     )
 
+    digest_suffix = f" ({digest})" if digest else ""
+
     if result.returncode != 0:
-        print(f"[Docker Preload] Pulling: {repository} ({digest})", flush=True)
+        print(f"[Docker Preload] Pulling: {repository}{digest_suffix}", flush=True)
         pull_result = subprocess.run(
             [docker_bin, "image", "pull", image],
             stdout=subprocess.DEVNULL,
             check=False,
         )
         if pull_result.returncode != 0:
-            print(f"[Docker Preload] Failed: {repository} ({digest})", flush=True)
+            print(f"[Docker Preload] Failed: {repository}{digest_suffix}", flush=True)
             return "failed"
-        print(f"[Docker Preload] Pulled: {repository} ({digest})", flush=True)
+        print(f"[Docker Preload] Pulled: {repository}{digest_suffix}", flush=True)
         status = "pulled"
     else:
         status = "present"
 
-    if separator and action != "dry-activate":
-        reconcile_image_references(docker_bin, repository, digest, tag)
+    if action != "dry-activate":
+        if not separator:
+            tag_separator = repository.rfind(":")
+            if tag_separator > repository.rfind("/"):
+                repository, tag = repository[:tag_separator], repository[tag_separator + 1:]
+            else:
+                tag = "latest"
+        reconcile_image_references(docker_bin, repository, digest, tag, reference)
     return status
 
 
